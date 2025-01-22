@@ -14,12 +14,15 @@ def create_beneficiary(body: CreateBeneficiary, user: User = Depends(get_user), 
     benefAccount = session.exec(select(Account).where(Account.account_number == body.beneficiary_account_number)).first()
     
     if benefAccount is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Beneficiary account not found")   
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Aucun compte n'existe avec cet IBAN")   
     
-    benef = session.exec(select(Beneficiary).where(Beneficiary.beneficiary_account_number == body.beneficiary_account_number)).first()
+    benef = session.exec(select(Beneficiary).where(Beneficiary.beneficiary_account_number == body.beneficiary_account_number, Beneficiary.account_number == body.account_number)).first()
     
     if benef is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Beneficiary already registered")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vous avez déjà ajouté ce bénéficiaire")
+    
+    if body.account_number == body.beneficiary_account_number:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vous ne pouvez pas ajouter votre propre compte comme bénéficiaire")
     
     beneficiary = Beneficiary(
         name=body.name,  
