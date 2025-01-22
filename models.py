@@ -33,3 +33,9 @@ class Deposit(SQLModel, table=True):
     account_number: str = Field(foreign_key="account.account_number")
     amount: float
     deposit_date: datetime = Field(default_factory=datetime.utcnow)
+    
+class Beneficiary(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    account_number: str = Field(foreign_key="account.account_number")
+    beneficiary_account_number: str = Field(foreign_key="account.account_number")
