@@ -100,13 +100,13 @@ async def create_transaction(
     ).first()
 
     if sender_account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable")
     
     if sender_account.balance < body.amount:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough money")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Fonds insuffisants")
 
     if body.amount < 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Amount must be positive")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le montant doit être positif")
 
     receiver_account = session.exec(
         select(Account).where(
@@ -116,7 +116,10 @@ async def create_transaction(
     ).first()
 
     if receiver_account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receiver account not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte destinataire introuvable")
+    
+    if sender_account == receiver_account:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vous ne pouvez pas envoyer d'argent à votre propre compte")
 
     sender_account.balance -= body.amount
     session.add(sender_account)

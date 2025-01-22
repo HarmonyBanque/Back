@@ -47,3 +47,8 @@ class ChangeEmail(BaseModel):
     current_email: EmailStr
     new_email: EmailStr
     password: str 
+      
+class CreateBeneficiary(BaseModel):
+    name: str
+    account_number: str
+    beneficiary_account_number: str  
