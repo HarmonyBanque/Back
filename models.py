@@ -19,6 +19,7 @@ class Account(SQLModel, table=True):
     name: str  
     type: str
 
+
 class Transaction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     sender_id: str = Field(foreign_key="account.account_number")
