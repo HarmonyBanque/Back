@@ -34,3 +34,15 @@ class Deposit(SQLModel, table=True):
     account_number: str = Field(foreign_key="account.account_number")
     amount: float
     deposit_date: datetime = Field(default_factory=datetime.utcnow)
+    
+from datetime import datetime, timedelta
+
+class Automatique_transaction(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sender_account: str = Field(foreign_key="account.account_number")
+    receiver_account: str = Field(foreign_key="account.account_number")
+    amount: float
+    transaction_date: datetime = Field(default_factory=datetime.utcnow)
+    occurence: int  # En secondes
+    description: Optional[str] = None
+    next_run: datetime = Field(default_factory=datetime.utcnow)
