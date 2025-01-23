@@ -4,7 +4,8 @@ from models import User, Account, Deposit, Transaction
 from schemas import CreateUser, CreateAccount, CreateDeposit, IncomeResponse
 from database import get_session
 from typing import List, Optional
-from route.auth import get_user
+from route.auth import get_user, pwd_context
+from pydantic import BaseModel
 import random
 
 router = APIRouter()
@@ -15,6 +16,12 @@ def generate_unique_account_number(session: Session) -> str:
         existing_account = session.exec(select(Account).where(Account.account_number == account_number)).first()
         if existing_account is None:
             return account_number
+
+class DeactivateRequest(BaseModel):
+    password: str
+
+def verify_password(user: User, password: str) -> bool:
+    return pwd_context.verify(password, user.hashed_password)
 
 @router.post("/", response_model=Account, tags=['account'])
 def create_account(body: CreateAccount, user: User = Depends(get_user), session: Session = Depends(get_session)) -> Account:
@@ -46,7 +53,10 @@ def read_account(account_number: str, user: User = Depends(get_user), session: S
     return account
 
 @router.post("/{account_number}/deactivate", tags=['account'])
-def deactivate_account(account_number: str, user: User = Depends(get_user), session: Session = Depends(get_session)):
+def deactivate_account(account_number: str, request: DeactivateRequest, user: User = Depends(get_user), session: Session = Depends(get_session)):
+    if not verify_password(user, request.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+
     account = session.exec(select(Account).where(Account.account_number == account_number, Account.isActive == True, Account.user_id == user.id)).first()
     mainAccount = session.exec(select(Account).where(Account.user_id == user.id and Account.isMain == True)).first()
 
