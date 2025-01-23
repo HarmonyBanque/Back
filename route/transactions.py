@@ -151,7 +151,7 @@ def cancel_transaction(transaction_id: int, user: User = Depends(get_user), sess
     session.add(sender_account)
 
     transaction.status = 0
-    transaction.description = "Transaction canceled by user"
+    transaction.description = "Transaction annulé"
     session.add(transaction)
     session.commit()
     session.refresh(transaction)
