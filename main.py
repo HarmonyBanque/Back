@@ -6,6 +6,7 @@ from route.deposit import router as deposit_router
 from route.transactions import router as trans_router, complete_pending_transaction, execute_automatique_transactions, scheduler
 from route.account import router as account_router
 from route.users import router as users_router
+from route.beneficiary import router as beneficiary_router
 from sqlmodel import Session, select
 from models import Transaction
 from apscheduler.triggers.interval import IntervalTrigger
@@ -45,3 +46,4 @@ app.include_router(deposit_router, prefix="/deposit")
 app.include_router(trans_router, prefix="/transactions")
 app.include_router(account_router, prefix="/accounts")
 app.include_router(users_router, prefix="/users")
+app.include_router(beneficiary_router, prefix="/beneficiary")
