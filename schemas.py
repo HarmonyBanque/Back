@@ -47,6 +47,15 @@ class ChangeEmail(BaseModel):
     current_email: EmailStr
     new_email: EmailStr
     password: str 
+
+    
+class CreateAutomatique(BaseModel):
+    sender_account: str
+    receiver_account: str
+    amount: float
+    occurence: int
+    description: Optional[str] = None
+
       
 class CreateBeneficiary(BaseModel):
     name: str

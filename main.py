@@ -3,12 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import create_db_and_tables, get_session
 from route.auth import router as auth_router
 from route.deposit import router as deposit_router
-from route.transactions import router as trans_router, complete_pending_transaction
+from route.transactions import router as trans_router, complete_pending_transaction, execute_automatique_transactions, scheduler
 from route.account import router as account_router
 from route.users import router as users_router
 from route.beneficiary import router as beneficiary_router
 from sqlmodel import Session, select
 from models import Transaction
+from apscheduler.triggers.interval import IntervalTrigger
 
 app = FastAPI()
 
@@ -33,6 +34,12 @@ async def on_startup():
     pending_transactions = session.exec(select(Transaction).where(Transaction.status == 1)).all()
     for transaction in pending_transactions:
         await complete_pending_transaction(transaction, session)
+    scheduler.add_job(execute_automatique_transactions, IntervalTrigger(seconds=10))
+    scheduler.start()
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    scheduler.shutdown()
 
 app.include_router(auth_router, prefix="/auth")
 app.include_router(deposit_router, prefix="/deposit")

@@ -3,12 +3,56 @@ from asyncio import sleep
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
-from database import get_session
-from models import Account, Transaction, User
-from schemas import CreateTransaction
+from database import get_session, engine
+from models import Account, Transaction, User, Automatique_transaction
+from schemas import CreateTransaction, CreateAutomatique
 from route.auth import get_user
+from datetime import datetime, timedelta
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 router = APIRouter()
+
+scheduler = AsyncIOScheduler()
+
+
+async def execute_automatique_transactions():
+    with Session(engine) as session:
+        now = datetime.utcnow()
+        automatique_transactions = session.exec(
+            select(Automatique_transaction).where(Automatique_transaction.next_run <= now)
+        ).all()
+
+        for auto_trans in automatique_transactions:
+            sender_account = session.exec(
+                select(Account).where(Account.account_number == auto_trans.sender_account)
+            ).first()
+            receiver_account = session.exec(
+                select(Account).where(Account.account_number == auto_trans.receiver_account)
+            ).first()
+
+            if sender_account and receiver_account and sender_account.balance >= auto_trans.amount:
+                sender_account.balance -= auto_trans.amount
+                receiver_account.balance += auto_trans.amount
+
+                transaction = Transaction(
+                    sender_id=auto_trans.sender_account,
+                    receiver_id=auto_trans.receiver_account,
+                    amount=auto_trans.amount,
+                    status=2,
+                    description="Automatique : " + auto_trans.description
+                )
+
+                session.add(sender_account)
+                session.add(receiver_account)
+                session.add(transaction)
+
+                auto_trans.next_run = now + timedelta(seconds=auto_trans.occurence)
+                session.add(auto_trans)
+
+        session.commit()
+
+scheduler.add_job(execute_automatique_transactions, IntervalTrigger(seconds=10))
 
 async def complete_pending_transaction(transaction: Transaction, session: Session):
     if transaction.status == 1:
@@ -192,3 +236,50 @@ def delete_transaction(transaction_id: int, user: User = Depends(get_user), sess
     session.commit()
     session.refresh(transaction)
     return transaction
+
+@router.post("/automatique", response_model=Automatique_transaction, tags=['transactions'])
+async def create_automatique_transaction(body: CreateAutomatique, user: User = Depends(get_user), session: Session = Depends(get_session)) -> Automatique_transaction:
+    sender_account = session.exec(
+        select(Account).where(
+            Account.user_id == user.id, 
+            Account.account_number == body.sender_account, 
+            Account.isActive == True
+        )
+    ).first()
+
+    if sender_account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    
+    if sender_account.balance < body.amount:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough money")
+
+    if body.amount < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Amount must be positive")
+
+    receiver_account = session.exec(
+        select(Account).where(
+            Account.account_number == body.receiver_account,
+            Account.isActive == True
+        )
+    ).first()
+
+    if receiver_account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receiver account not found")
+
+    next_run = datetime.utcnow() + timedelta(seconds=body.occurence)
+
+    automatique_transaction = Automatique_transaction(
+        sender_account=body.sender_account,
+        receiver_account=body.receiver_account,
+        amount=body.amount,
+        occurence=body.occurence,
+        description=body.description,
+        next_run=next_run
+    )
+    session.add(automatique_transaction)
+    session.commit()
+    session.refresh(automatique_transaction)
+
+    return automatique_transaction
+
+
